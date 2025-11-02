@@ -1,0 +1,16 @@
+# Better Crystal Heart
+This mod enhances Crystal Heart to be a viable attack in combat.
+
+Crystal Heart's charging time is reduced when Sprintmaster, Dashmaster and Quick Focus are equipped.
+This bonus is based on their notch costs, with the maximum bonus being a 44% reduction.
+
+Crystal Heart now deals damage equal to a fraction of the enemy's max health.
+This bonus is based on the player's max health, and is increased by 36% if Deep Focus is equipped.
+
+So if a player has 9 Masks, Sprintmaster, Dashmaster, Quick Focus and Deep Focus equipped,
+Crystal Heart will take about 0.44 seconds to charge and will deal about 101 extra damage to
+an enemy with 1000 health.
+
+Additionally, both bonuses can be customized using the menu plugin.
+The maximum value is 100%, doubling all bonuses to damage and charge time,
+and the minimum value is -100%, negating all bonuses.
