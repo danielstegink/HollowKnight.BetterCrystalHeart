@@ -1,6 +1,5 @@
 ﻿using DanielSteginkUtils.Utilities;
 using Modding;
-using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -10,7 +9,7 @@ namespace BetterCrystalHeart
     {
         public static BetterCrystalHeart Instance;
 
-        public override string GetVersion() => "1.0.0.0";
+        public override string GetVersion() => "1.1.0.0";
 
         #region Save Settings
         internal static GlobalSettings globalSettings = new GlobalSettings();
@@ -32,11 +31,24 @@ namespace BetterCrystalHeart
 
             Instance = this;
 
+            On.HutongGames.PlayMaker.Actions.ListenForSuperdash.OnEnter += RemoveDelay;
             On.HutongGames.PlayMaker.Actions.Wait.OnEnter += ChargeTime;
-            On.HealthManager.TakeDamage += StoreMaxHealth;
+            On.HealthManager.Start += StoreMaxHealth;
             On.HealthManager.TakeDamage += Damage;
 
             Log("Initialized");
+        }
+
+        /// <summary>
+        /// Removes the small/confusing delay before charge-up occurs
+        /// </summary>
+        /// <param name="orig"></param>
+        /// <param name="self"></param>
+        private void RemoveDelay(On.HutongGames.PlayMaker.Actions.ListenForSuperdash.orig_OnEnter orig, HutongGames.PlayMaker.Actions.ListenForSuperdash self)
+        {
+            orig(self);
+
+            self.isPressed = self.wasPressed;
         }
 
         #region ChargeTime
@@ -139,22 +151,25 @@ namespace BetterCrystalHeart
         /// </summary>
         /// <param name="orig"></param>
         /// <param name="self"></param>
-        /// <param name="hitInstance"></param>
-        /// <exception cref="NotImplementedException"></exception>
-        private void StoreMaxHealth(On.HealthManager.orig_TakeDamage orig, HealthManager self, HitInstance hitInstance)
+        private void StoreMaxHealth(On.HealthManager.orig_Start orig, HealthManager self)
         {
-            if (self.gameObject != null)
-            {
-                GameObject enemy = self.gameObject;
-                string enemyName = enemy.name;
-                if (!enemyMaxHealth.ContainsKey(enemyName))
-                {
-                    enemyMaxHealth.Add(enemyName, self.hp);
-                    //Log($"{enemyName} has a max HP of {self.hp}");
-                }
-            }
+            orig(self);
+            StoreMaxHealth(self);
+        }
 
-            orig(self, hitInstance);
+        /// <summary>
+        /// Stores max health in a data structure
+        /// </summary>
+        /// <param name="self"></param>
+        private void StoreMaxHealth(HealthManager self)
+        {
+            GameObject enemy = self.gameObject;
+            string enemyName = enemy.name;
+            if (!enemyMaxHealth.ContainsKey(enemyName))
+            {
+                enemyMaxHealth.Add(enemyName, self.hp);
+                //Log($"{enemyName} has a max HP of {self.hp}");
+            }
         }
         #endregion
 
@@ -184,19 +199,52 @@ namespace BetterCrystalHeart
         /// <returns></returns>
         private float GetDamageBonus(HealthManager enemy)
         {
-            // We take damage whenever we deal damage with CDash
-            // If dealing damage costs a percentage of our health, it makes sense that we'd deal damage equal to a percentage of the target's health
+            float bonusDamage = GetRevengeDamage(enemy);
+
+            // It also makes some sense to buff CDash based on our nail, since Sharp Shadow works that way
+            bonusDamage += PlayerData.instance.GetInt("nailDamage");
+
+            bonusDamage *= GetCharmBonus();
+            //Log($"CDash charm damage: {charmModifier} -> {bonusDamage}");
+
+            // A little personal adjustment based on my tastes
+            bonusDamage /= 1.5f;
+            //Log($"CDash final damage: {bonusDamage}");
+
+            // Apply user-set percentile bonus (or penalty)
+            float globalModifier = 1 + (globalSettings.DamageModifier / 100); // 100% to double, -100% to negate
+            bonusDamage *= globalModifier;
+
+            return bonusDamage;
+        }
+
+        /// <summary>
+        /// We take damage whenever we deal damage with CDash, so we will hit the enemy for a portion of their max health.
+        /// </summary>
+        /// <param name="enemy"></param>
+        /// <returns></returns>
+        private float GetRevengeDamage(HealthManager enemy)
+        {
             float maxHealth = PlayerData.instance.GetInt("maxHealth");
             float healthPercent = 1 / maxHealth;
-            int enemyHealth = 1;
-            try
+
+            if (!enemyMaxHealth.ContainsKey(enemy.gameObject.name))
             {
-                enemyHealth = enemyMaxHealth[enemy.gameObject.name];
+                StoreMaxHealth(enemy);
             }
-            catch { } // Just in case the game object is null for some reason
+            int enemyHealth = enemyMaxHealth[enemy.gameObject.name];
+
             float bonusDamage = enemyHealth * healthPercent;
             //Log($"CDash damage: {enemyHealth} * {healthPercent} = {bonusDamage}");
+            return bonusDamage;
+        }
 
+        /// <summary>
+        /// Gets the damage modifier to apply based on charms equipped
+        /// </summary>
+        /// <returns></returns>
+        private float GetCharmBonus()
+        {
             // Crystal Dash charges like a Nail Art, so it makes sense to buff its damage like one
             // Per my Utils, 1 notch is worth a 27% increase in Nail Art damage
             float damageBoostPerNotch = NotchCosts.NailArtDamagePerNotch();
@@ -210,19 +258,7 @@ namespace BetterCrystalHeart
                 notchValue += 4;
             }
 
-            float charmModifier = 1 + damageBoostPerNotch * notchValue / 3;
-            bonusDamage *= charmModifier;
-            //Log($"CDash charm damage: {charmModifier} -> {bonusDamage}");
-
-            // A little personal adjustment based on my tastes
-            bonusDamage /= 1.5f;
-            //Log($"CDash final damage: {bonusDamage}");
-
-            // Apply user-set percentile bonus (or penalty)
-            float globalModifier = 1 + (globalSettings.DamageModifier / 100); // 100% to double, -100% to negate
-            bonusDamage *= globalModifier;
-
-            return bonusDamage;
+            return 1 + damageBoostPerNotch * notchValue / 3;
         }
         #endregion
 
