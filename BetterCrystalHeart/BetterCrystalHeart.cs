@@ -9,7 +9,7 @@ namespace BetterCrystalHeart
     {
         public static BetterCrystalHeart Instance;
 
-        public override string GetVersion() => "1.1.0.0";
+        public override string GetVersion() => "1.1.1.0";
 
         #region Save Settings
         internal static GlobalSettings globalSettings = new GlobalSettings();
@@ -48,7 +48,11 @@ namespace BetterCrystalHeart
         {
             orig(self);
 
-            self.isPressed = self.wasPressed;
+            if (self.Fsm.Name.Contains("Superdash") &&
+                self.State.Name.Equals("Inactive"))
+            {
+                self.isPressed = self.wasPressed;
+            }
         }
 
         #region ChargeTime

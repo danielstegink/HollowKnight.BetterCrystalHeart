@@ -16,6 +16,9 @@ The maximum value is 100%, doubling all bonuses to damage and charge time,
 and the minimum value is -100%, negating all bonuses.
 
 ## Patch Notes
+1.1.1.0
+- Bug fix limiting scope of the "remove input delay" code
+
 1.1.0.0
 - Removed input delay from Crystal Heart, making it easier to trigger quickly
 - Improved logic for getting enemy health so initial CDash doesn't do less than 1% damage
